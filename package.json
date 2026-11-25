@@ -1,0 +1,60 @@
+{
+  "name": "scootch",
+  "version": "0.1.0",
+  "description": "A dev-only inspector for any React app: check spacing, layout, type and colour against your tokens, edit live, leave notes.",
+  "license": "MIT",
+  "keywords": [
+    "inspector",
+    "design-tokens",
+    "devtools",
+    "react",
+    "css"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/scootch.css",
+    "./next": "./server/next.js",
+    "./vite": "./server/vite.js"
+  },
+  "files": [
+    "dist",
+    "server",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@base-ui/react": "^1.9.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "homepage": "https://scootch.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saniaio/scootch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/saniaio/scootch/issues"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json && node scripts/add-extensions.mjs && cp src/scootch.css dist/scootch.css",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^7.0.2"
+  }
+}

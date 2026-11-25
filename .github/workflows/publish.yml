@@ -1,0 +1,26 @@
+# Publishes to npm when a version tag is pushed (v0.1.0 for version 0.1.0 in package.json).
+# npm trusts this repo and this workflow file (a "trusted publisher", set on npmjs.com under the
+# package's settings), so no token is stored here. Needs npm 11.5.1 or later, which Node 24 brings.
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+      - name: The tag has to match the version in package.json
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - run: npm install
+      - run: npm publish --access public
