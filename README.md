@@ -203,6 +203,8 @@ import { ScootchEmbed } from 'scootch'
 
 It is always open and runs in production. Only elements inside `scope` (a CSS selector) can be picked; the rest of the page behaves as usual. `select` is the element it starts on, so there is something to try straight away. Notes stay in the browser and go when the page reloads. Draw, rulers and dock are left out, since they act on the whole page. If the full Scootch is open on the same page, the embedded one steps aside.
 
+Rendered on the server, the embedded panel is in the page before Scootch has added its styles. To have it styled from the first paint, import the stylesheet yourself, once: `import 'scootch/styles.css'`. The floating Scootch never needs this.
+
 ## Look
 
 Scootch has its own styles (`--sc-*`), so your app's CSS doesn't change it, and its values can't clash with your tokens. It's dark when the page is: it reads `data-theme` or a `dark` class on `<html>` or `<body>`, and otherwise the page's own background. It is set in [ABC Areal](https://abcdinamo.com/typefaces/areal) if your app or your computer already has it, and otherwise in your computer's own font (San Francisco on a Mac, Segoe UI on Windows). Scootch ships and loads no fonts.
