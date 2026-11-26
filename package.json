@@ -21,7 +21,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./styles.css": "./dist/scootch.css",
     "./next": "./server/next.js",
     "./vite": "./server/vite.js"
   },

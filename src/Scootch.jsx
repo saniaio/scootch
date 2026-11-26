@@ -19,7 +19,7 @@ import { configure } from './tokens'
 import { VERSION } from './version'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { CommentBox, Markers, SketchBox, Sketches, anchorFor, elementFor, setNotesApi, toRelative, useFrame, useNotes } from './Notes'
-import { ALargeSmall, Moon, Sun, AnchorGrid, ArrowCounterClockwise, ArrowDown, ArrowUp, ArrowLeftRight, ArrowRight, Bold, Button, CaretDown, Columns, GapHorizontal, GapVertical, JustifyAround, JustifyBetween, JustifyPacked, LineDashed, LineDotted, LineSolid, CornerRadius, Minus, NumberField, Rows, SidePicker, WrapText, LetterSpacing, LineHeight, List, PanelRight, PencilSimple, Plus, RulerCorner, SegmentedControl, ScrollArea, Select, Switch, Textarea, TokenField, Type, X, BoxModel as LibraryBoxModel, NoteList } from './system/index'
+import { ALargeSmall, Moon, Sun, AnchorGrid, ArrowCounterClockwise, ArrowDown, ArrowUp, ArrowLeftRight, ArrowRight, Bold, Button, CaretDown, Columns, GapHorizontal, GapVertical, JustifyAround, JustifyBetween, JustifyPacked, LineDashed, LineDotted, LineSolid, CornerRadius, Minus, NumberField, Rows, SidePicker, WrapText, LetterSpacing, LineHeight, List, PanelRight, PencilSimple, Plus, RulerCorner, SegmentedControl, ScrollArea, Select, Slider, Switch, Textarea, TokenField, Type, X, BoxModel as LibraryBoxModel, NoteList } from './system/index'
 import Rulers, { RULER_SIZE } from './Rulers'
 import {
   colourTokens,
@@ -45,6 +45,7 @@ import {
   pageTheme as readPageTheme,
 } from './inspect'
 import { changesOf, kindOf, optionsOf, resetControls, setControl, useControlGroups } from './controls'
+import { useStyles } from './styles'
 
 const SIDES = ['top', 'right', 'bottom', 'left']
 // Scootch's own nodes, and the library's popups (its token menus open in one, outside the panel)
@@ -675,37 +676,40 @@ function TypeSection({ el, record, onReset }) {
   const trackEm = c.letterSpacing === 'normal' ? 0 : Math.round((parseFloat(c.letterSpacing) / fontPx) * 1000) / 1000
   const trackState = matchState(trackDecl, tracking.find((t) => Math.abs((parseFloat(t.value) || 0) - trackEm) < 0.001))
 
+  // One field for both: every type style (a named composite), then every font — the app's font tokens
+  // and the fonts the project has added. Picking a style swaps its class; picking a font sets the family,
+  // detaching a locked style first so the font takes.
+  const styleItems = styles.map((t) => ({ name: t.cls, label: `${parseFloat(t.fontSize)}/${parseFloat(t.lineHeight)}`, group: 'Type styles' }))
+  const fontItems = [
+    ...fontList.tokens.map((t) => ({ name: t.name, label: firstFamily(t.value), group: 'Typefaces' })),
+    ...fontList.project.map((name) => ({ name, label: 'Project font', group: 'Typefaces' })),
+  ]
+  const typeAndFont = [...styleItems, ...fontItems]
+  const styleNames = new Set(styleItems.map((t) => t.name))
+  const hasStyle = !!(used || matching)
+  const styleDisplay = used ? `.${used.cls}${used.own || used.here ? '' : ' (inherited)'}` : matching ? `matches .${matching.cls}` : 'none'
+  const pickStyleOrFont = (name) => {
+    if (styleNames.has(name)) return swapClass(name)
+    if (locked) detach()
+    pickFont(name)
+  }
+
   return (
     <section className="sc-section">
       <Heading onReset={onReset}>Type</Heading>
       {/* Laid out like the library's Text Controls: style, weight, size and line, case and tracking, colour */}
       <div className="sc-type">
         <TokenField
-          label="Type style"
+          label="Type style or font"
           icon={<Type size={14} />}
           value={null}
-          display={used ? `.${used.cls}${used.own || used.here ? '' : ' (inherited)'}` : matching ? `matches .${matching.cls}` : 'none'}
-          tone={styleState.kind}
-          current={used ? used.cls : matching?.cls}
-          tokens={styles.map((t) => ({ name: t.cls, label: `${parseFloat(t.fontSize)}/${parseFloat(t.lineHeight)}` }))}
-          onPick={swapClass}
+          display={hasStyle ? styleDisplay : family}
+          tone={hasStyle ? styleState.kind : fontState.kind}
+          current={used ? used.cls : matching ? matching.cls : fontState.token ?? family}
+          tokens={typeAndFont}
+          onPick={pickStyleOrFont}
           onDetach={locked ? detach : undefined}
-          title={used?.css ? `Set in CSS: font: var(--${used.cls})` : used ? `Uses .${used.cls}` : matching ? `Its values match .${matching.cls}, but the class isn't applied` : "Doesn't match any type style"}
-        />
-        <TokenField
-          label="Font"
-          icon={<span className="sc-size-label">Aa</span>}
-          value={null}
-          display={family}
-          disabled={locked}
-          tone={fontState.kind}
-          current={fontState.token ?? family}
-          tokens={[
-            ...fontList.tokens.map((t) => ({ name: t.name, label: firstFamily(t.value) })),
-            ...fontList.project.map((name) => ({ name, label: 'Project font' })),
-          ]}
-          onPick={pickFont}
-          title={`font-family: ${fontDecl ?? c.fontFamily}${fontDecl ? '' : ' (inherited)'}`}
+          title={used?.css ? `Set in CSS: font: var(--${used.cls})` : used ? `Uses .${used.cls}` : matching ? `Its values match .${matching.cls}, but the class isn't applied` : `font-family: ${fontDecl ?? c.fontFamily}${fontDecl ? '' : ' (inherited)'}`}
         />
         <TokenField
           label="Weight"
@@ -1511,25 +1515,27 @@ function ControlRows({ group, schema, values, path = [] }) {
     const opts = spec && typeof spec === 'object' ? spec : {}
     return (
       <div key={key} className="sc-control" data-kind={kind}>
-        <span className="sc-control-label" title={at.join('.')}>
-          {label}
-        </span>
+        {kind === 'text' && (
+          <span className="sc-control-label" title={at.join('.')}>{label}</span>
+        )}
         {kind === 'number' && (
-          <TokenField
+          <Slider
+            variant="bar"
             label={label}
             value={value}
-            min={opts.min ?? null}
+            min={opts.min ?? 0}
+            max={opts.max ?? 100}
             step={opts.step ?? (Math.abs(value) <= 1 && (opts.max ?? 1) <= 1 ? 0.01 : 1)}
-            unit={opts.unit}
-            tone="custom"
-            tokens={[]}
-            onPick={() => {}}
-            onType={(v) => set(opts.max != null ? Math.min(opts.max, v) : v)}
+            unit={opts.unit ?? ''}
+            onValueChange={(v) => set(v)}
           />
         )}
-        {kind === 'toggle' && <Switch aria-label={label} checked={!!value} onCheckedChange={(v) => set(v)} />}
+        {kind === 'toggle' && (
+          <Switch variant="bar" label={label} checked={!!value} onCheckedChange={(v) => set(v)} />
+        )}
         {kind === 'colour' && (
           <TokenField
+            variant="bar"
             label={label}
             value={null}
             display={/^var\(/.test(value) ? value.replace(/^var\(\s*--|\)$/g, '') : value}
@@ -1541,8 +1547,12 @@ function ControlRows({ group, schema, values, path = [] }) {
             onColour={(v) => set(v)}
           />
         )}
-        {kind === 'choice' && <Select aria-label={label} value={String(value)} onValueChange={(v) => set(v)} options={optionsOf(spec)} />}
-        {kind === 'text' && <Textarea aria-label={label} minRows={1} maxRows={6} value={value ?? ''} onChange={(e) => set(e.target.value)} />}
+        {kind === 'choice' && (
+          <Select variant="bar" label={label} value={String(value)} onValueChange={(v) => set(v)} options={optionsOf(spec)} />
+        )}
+        {kind === 'text' && (
+          <Textarea aria-label={label} minRows={1} maxRows={6} value={value ?? ''} onChange={(e) => set(e.target.value)} />
+        )}
       </div>
     )
   })
@@ -1649,6 +1659,7 @@ const PillContent = ({ count }) => (
 // elements inside `scope` only (a CSS selector; the rest of the page behaves as usual), keeps its notes in
 // the browser, and steps aside while a full Scootch on the same page is open. `theme` is what it starts in.
 export default function Scootch({ notesApi: notesUrl = '/api/notes', tokens, tabs = [], embed = false, scope, select, theme: startTheme } = {}) {
+  useStyles() // its own stylesheet: no CSS import in the app
   const pageRead = usePageThemeRead()
   const pageTheme = pageRead ?? 'light'
   const [theme, flipTheme] = usePanelTheme(startTheme ?? pageRead, embed ? 'scootch-embed-theme' : 'scootch-theme')
@@ -2270,12 +2281,6 @@ export default function Scootch({ notesApi: notesUrl = '/api/notes', tokens, tab
           ) : (
             <>
               <EmptyHint embed={embed} />
-              {/* Nothing selected: the app's own controls still show, the ones not tied to an element */}
-              {controlGroups.some((g) => !g.el) && (
-                <PanelScroll>
-                  <ControlSections selected={null} />
-                </PanelScroll>
-              )}
             </>
           )}
 

@@ -34,13 +34,23 @@ export default function SegmentedControl({
   const listRef = useRef<HTMLDivElement>(null)
 
   // Slide the pill to the picked option (the same CSS variables Base UI sets for the tabs' indicator)
-  useLayoutEffect(() => {
+  const place = () => {
     const list = listRef.current
     const item = list?.querySelector<HTMLElement>('[data-pressed]')
     if (!list || !item) return
     list.style.setProperty('--active-tab-left', `${item.offsetLeft}px`)
     list.style.setProperty('--active-tab-width', `${item.offsetWidth}px`)
-  }, [current, options])
+  }
+  useLayoutEffect(place, [current, options])
+  // And again whenever its size changes: measured while hidden (a folded section, a closed popup) it has
+  // no width, which left the pill as a sliver at the left edge once it was shown
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (!list || typeof ResizeObserver === 'undefined') return
+    const watch = new ResizeObserver(place)
+    watch.observe(list)
+    return () => watch.disconnect()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="sc-ui-tabs" data-variant={variant} data-disabled={disabled || undefined}>

@@ -7,16 +7,18 @@
 // above it. The value's colour says where it stands: token (purple), matches (amber: typed in, but equal to a
 // token: the link button beside it uses that token in one click), rogue (text colour: no token for it), custom (text
 // colour), none (grey: nothing there). Hover for the detail.
+// variant "bar": the label shows inside the field on the left and the value on the right, like the bar slider.
 // From Scootch, where every value is one. Its height is the density's (--control-height).
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import ColorPicker from './ColorPicker'
 import ScrollArea from './ScrollArea'
 import DropdownMenu from './DropdownMenu'
 import { Grid, Link, LinkBreak, List, SquareDot } from './icons'
 
 export type TokenTone = 'token' | 'matches' | 'rogue' | 'custom' | 'none'
-/** A token in the list: its name, the value shown on the right, and a swatch for colours */
-export type TokenOption = { name: string; label?: string; swatch?: string }
+/** A token in the list: its name, the value shown on the right, a swatch for colours, and an optional
+ * group — consecutive tokens that share a group get a heading above the first of them. */
+export type TokenOption = { name: string; label?: string; swatch?: string; group?: string }
 
 const TONE_TITLE: Record<TokenTone, (t?: string) => string> = {
   token: (t) => `Uses ${t}`,
@@ -124,25 +126,31 @@ function TokenList({ anchor, tokens, current, unit, colour, onColour, onPick, on
       <div className="sc-ui-token-items" role="listbox" data-view={swatches ? view : undefined}>
         {shown.length === 0 && <p className="sc-ui-token-empty">No tokens match</p>}
         {shown.map((t, i) => (
-          <button
-            key={t.name}
-            type="button"
-            role="option"
-            aria-selected={t.name === current}
-            className="sc-ui-token-item"
-            data-hi={i === hi || undefined}
-            data-current={t.name === current || undefined}
-            title={view === 'grid' && swatches ? t.name.replace(/^--/, '') : undefined}
-            onMouseEnter={() => setHi(i)}
-            onClick={() => onPick(t.name)}
-          >
-            {t.swatch && <span className="sc-ui-token-swatch" style={{ background: t.swatch }} />}
-            <span className="sc-ui-token-name">{t.name.replace(/^--/, '')}</span>
-            <span className="sc-ui-token-value">
-              {t.label}
-              {unit && /^-?[\d.]+$/.test(t.label ?? '') ? unit : ''}
-            </span>
-          </button>
+          <Fragment key={t.name}>
+            {t.group && t.group !== shown[i - 1]?.group && (
+              <div className="sc-ui-token-grouphead" role="presentation">
+                {t.group}
+              </div>
+            )}
+            <button
+              type="button"
+              role="option"
+              aria-selected={t.name === current}
+              className="sc-ui-token-item"
+              data-hi={i === hi || undefined}
+              data-current={t.name === current || undefined}
+              title={view === 'grid' && swatches ? t.name.replace(/^--/, '') : undefined}
+              onMouseEnter={() => setHi(i)}
+              onClick={() => onPick(t.name)}
+            >
+              {t.swatch && <span className="sc-ui-token-swatch" style={{ background: t.swatch }} />}
+              <span className="sc-ui-token-name">{t.name.replace(/^--/, '')}</span>
+              <span className="sc-ui-token-value">
+                {t.label}
+                {unit && /^-?[\d.]+$/.test(t.label ?? '') ? unit : ''}
+              </span>
+            </button>
+          </Fragment>
         ))}
       </div>
       </ScrollArea>
@@ -177,8 +185,9 @@ export type TokenFieldProps = {
   swatch?: string
   /** Shown before the value, like a field's label in Figma */
   icon?: ReactNode
-  /** What the field is, for screen readers (it shows no label of its own) */
+  /** What the field is, for screen readers; the bar variant shows it too */
   label?: string
+  variant?: 'field' | 'bar'
   title?: string
   className?: string
   /** Greyed out and read-only: the value comes from something else (a type style's size, say) */
@@ -207,6 +216,7 @@ export default function TokenField({
   swatch,
   icon,
   label,
+  variant = 'field',
   title,
   className,
   disabled = false,
@@ -233,6 +243,18 @@ export default function TokenField({
     setDraft(null)
   }
   const rect = () => wrap.current!.getBoundingClientRect()
+
+  // Bar variant with a value that is picked, not typed (a colour): a click anywhere on the row opens the
+  // list, not only on the value or the button at the end. The buttons keep their own clicks, and a click
+  // that just closed the list doesn't open it again: the press on the row counts as a press outside the
+  // list and closes it first, so the row notes when the list last closed and whether its press did it.
+  const rowOpens = variant === 'bar' && !typeable && !disabled && (tokens.length > 0 || !!onColour)
+  const closedAt = useRef(-1000)
+  const wasOpen = useRef(false)
+  const onRowClick = (e: MouseEvent<HTMLSpanElement>) => {
+    if ((e.target as HTMLElement).closest('button, input, .sc-ui-token-list, .sc-ui-positioner')) return
+    if (!wasOpen.current) setOpen(rect())
+  }
 
   // Drag on the field to scrub; a press without moving puts the cursor in it to type
   const onPointerDown = (e: PointerEvent<HTMLInputElement>) => {
@@ -263,10 +285,15 @@ export default function TokenField({
       ref={wrap}
       className={['sc-ui-token-field', className].filter(Boolean).join(' ')}
       data-tone={tone}
+      data-variant={variant === 'bar' ? 'bar' : undefined}
+      data-row-opens={rowOpens ? '' : undefined}
+      onPointerDown={rowOpens ? () => (wasOpen.current = performance.now() - closedAt.current < 100) : undefined}
+      onClick={rowOpens ? onRowClick : undefined}
       data-open={open ? '' : undefined}
       data-disabled={disabled || undefined}
       title={title ?? TONE_TITLE[tone](current)}
     >
+      {variant === 'bar' && label && <span className="sc-ui-token-label">{label}</span>}
       {swatch && <span className="sc-ui-token-swatch" style={{ background: swatch }} />}
       {icon && <span className="sc-ui-token-lead">{icon}</span>}
       {typeable ? (
@@ -343,7 +370,7 @@ export default function TokenField({
             onPick(name)
             setOpen(null)
           }}
-          onClose={() => setOpen(null)}
+          onClose={() => ((closedAt.current = performance.now()), setOpen(null))}
         />
       )}
     </span>

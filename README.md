@@ -20,7 +20,7 @@ The bar at the top holds the tools:
 
 Leave notes pinned to elements from the comment box under the values. Adjustments save themselves as notes too, one per element, kept up to date as you tweak. Notes and adjusted elements get numbered markers on the page and one numbered list: open it with **View all** at the bottom of the panel, or the list icon in the bar. Click an item to go to it. **Copy** copies them all as text; **Reset**, in the list, undoes every adjustment and marks every note resolved.
 
-It works with any design system: it reads the tokens from your app's own CSS. It renders nothing in production.
+It works with any design system: it reads the tokens from your app's own CSS. It renders nothing in production, and a production build leaves it out entirely, its styles included: Scootch adds its stylesheet to the page itself, only when it renders.
 
 ## Install
 
@@ -38,7 +38,7 @@ Paste this to your agent and it sets Scootch up for you:
 Add Scootch to this project. It is a dev-only inspector for React apps: it renders nothing in production.
 
 1. Install it as a dev dependency: npm install -D scootch
-2. Find where the app is mounted (Next.js: the root layout; Vite: main.tsx). Import Scootch from 'scootch' and its styles from 'scootch/styles.css', and render <Scootch /> once, next to the app.
+2. Find where the app is mounted (Next.js: the root layout; Vite: main.tsx). Import Scootch from 'scootch' and render <Scootch /> once, next to the app. It brings its own styles: there is no CSS file to import.
 3. Make notes save to .notes/notes.json. Next.js: add app/api/notes/route.js that re-exports GET, POST, PATCH and DELETE from 'scootch/next'. Vite: add scootchNotes() from 'scootch/vite' to the plugins.
 4. Add .notes/ to .gitignore.
 5. Start the dev server and check that ⌥I opens the panel.
@@ -54,7 +54,6 @@ In the root layout:
 
 ```jsx
 import Scootch from 'scootch'
-import 'scootch/styles.css'
 
 // …inside <body>
 <Scootch />
@@ -71,7 +70,6 @@ export { GET, POST, PATCH, DELETE } from 'scootch/next'
 ```jsx
 // main.tsx
 import Scootch from 'scootch'
-import 'scootch/styles.css'
 // render <Scootch /> next to your <App />
 ```
 
@@ -82,6 +80,52 @@ export default { plugins: [react(), scootchNotes()] }
 ```
 
 Notes are saved in `.notes/notes.json` in your app's folder. Add `.notes/` to `.gitignore`.
+
+## Astro
+
+Scootch runs as a React island. Astro needs its React integration (`npx astro add react`), and Scootch has to sit in a small component of your own: importing it straight into an `.astro` file doesn't load.
+
+```jsx
+// src/components/ScootchDev.jsx
+import Scootch from 'scootch'
+export default function ScootchDev() {
+  return <Scootch />
+}
+```
+
+```astro
+---
+// in your layout
+import ScootchDev from '../components/ScootchDev.jsx'
+---
+<ScootchDev client:only="react" />
+```
+
+For notes, add `scootchNotes()` from `scootch/vite` under `vite.plugins` in `astro.config.mjs`.
+
+## Vue, Svelte or plain HTML
+
+Scootch is a React component, but it only looks at the page, so it works beside any framework. Add React as a dev dependency (`npm install -D scootch react react-dom`) and give Scootch a root of its own in one small file:
+
+```js
+// src/scootch.js
+import { createElement } from 'react'
+import { createRoot } from 'react-dom/client'
+import Scootch from 'scootch'
+
+const el = document.createElement('div')
+document.body.appendChild(el)
+createRoot(el).render(createElement(Scootch))
+```
+
+Load it from your entry file in development only, so none of it reaches a production build:
+
+```js
+// src/main.js, after your app is mounted
+if (import.meta.env.DEV) import('./scootch.js')
+```
+
+On Vite (the default for Vue and Svelte), notes work with `scootchNotes()` from `scootch/vite` in `vite.config.js`, as above.
 
 ## Your tokens
 
@@ -161,7 +205,7 @@ It is always open and runs in production. Only elements inside `scope` (a CSS se
 
 ## Look
 
-Scootch has its own styles (`--sc-*`), so your app's CSS doesn't change it, and its values can't clash with your tokens. It's dark when the page is: it reads `data-theme` or a `dark` class on `<html>` or `<body>`, and otherwise the page's own background. It uses [ABC Areal](https://abcdinamo.com/typefaces/areal) if your app loads it, otherwise the system font.
+Scootch has its own styles (`--sc-*`), so your app's CSS doesn't change it, and its values can't clash with your tokens. It's dark when the page is: it reads `data-theme` or a `dark` class on `<html>` or `<body>`, and otherwise the page's own background. It is set in [ABC Areal](https://abcdinamo.com/typefaces/areal) if your app or your computer already has it, and otherwise in your computer's own font (San Francisco on a Mac, Segoe UI on Windows). Scootch ships and loads no fonts.
 
 To restyle it, override any `--sc-*` value in your own CSS, for example `:root { --sc-accent: #e11d48; }`.
 
