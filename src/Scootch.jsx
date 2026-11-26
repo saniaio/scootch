@@ -10,6 +10,8 @@
 // The tools' shortcuts are all Shift and a letter (⇧D, ⇧R, and ⇧G when there are grids), so they never fire while you type.
 //   Dock    – the panel can sit beside the page, like the browser's inspect panel, so nothing is
 //             hidden under it.
+//   Breakpoint – the bar shows which breakpoint the window is in, worked out from the app's own CSS
+//             (breakpoint.js); every note records it.
 //   Tabs    – the app can add its own tabs next to Inspect (the `tabs` prop: { id, label, render }).
 // Notes and adjusted elements get numbered markers on the page and one numbered list in the panel.
 // Adjustments save themselves as notes too (one per element, kept up to date as you tweak), so
@@ -46,6 +48,7 @@ import {
 } from './inspect'
 import { changesOf, kindOf, optionsOf, resetControls, setControl, useControlGroups } from './controls'
 import { useStyles } from './styles'
+import { breakpointLabel, useBreakpoint } from './breakpoint'
 
 const SIDES = ['top', 'right', 'bottom', 'left']
 // Scootch's own nodes, and the library's popups (its token menus open in one, outside the panel)
@@ -1387,12 +1390,24 @@ const Wordmark = () => (
 // One bar: the name and the app's tabs on the left, the tools on the right
 // embed: the panel sits in the page (ScootchEmbed), so the tools that act on the whole page (draw, rulers,
 // dock) and close are left out
-function PanelBar({ changes, onChanges, drawing, onDrawing, rulers, onRulers, docked, onDocked, onClose, theme, onTheme, grab, embed }) {
+function PanelBar({ changes, onChanges, drawing, onDrawing, rulers, onRulers, docked, onDocked, onClose, theme, onTheme, grab, embed, breakpoint: bp }) {
+  // The breakpoint, short: the app's name for it and where it starts ("l 1024"), or just "≥1024"; below the first one, "<360".
+  // The whole range and the widths are in its title.
+  const bpShort = !bp || (bp.from === null && bp.to === null) ? '' : `${bp.name ? `${bp.name} ` : ''}${bp.from === null ? `<${bp.to + 1}` : bp.name ? bp.from : `≥${bp.from}`}`
+  const bpTitle = bp && `Breakpoint ${breakpointLabel(bp)}. The window is ${bp.width} wide${bp.page < bp.width ? `; the page has ${bp.page} of it, and keeps the window's breakpoint` : ''}.`
   return (
     <div className="sc-bar" data-grab={grab ? '' : undefined} {...grab}>
       <span className="sc-name">
         <Wordmark />
-        <span className="sc-version">v {VERSION}</span>
+        {/* After the wordmark: the breakpoint the window is in; the version takes its place while the wordmark is hovered */}
+        <span className="sc-name-after">
+          {bpShort && (
+            <span className="sc-breakpoint" title={bpTitle}>
+              {bpShort}
+            </span>
+          )}
+          <span className="sc-version">v {VERSION}</span>
+        </span>
       </span>
       <div className="sc-bar-tools">
         {/* The list of notes and adjustments. First of the tools, not a tab of its own; how many are open
@@ -1690,6 +1705,8 @@ export default function Scootch({ notesApi: notesUrl = '/api/notes', tokens, tab
   const [savedDockWidth, saveDockWidth] = usePersisted('scootch-dock-width', DOCK_DEFAULT)
   const [dragWidth, setDragWidth] = useState(null) // while resizing; saved on release
   const dockWidth = dragWidth ?? clampDock(savedDockWidth) // a width saved before the 320–420 range comes back inside it
+  // The breakpoint the window is in, kept current while Scootch is open (docking changes the page's share of it)
+  const breakpoint = useBreakpoint(active, docked, dockWidth)
   const setDockWidth = (w, done) => {
     if (done) {
       saveDockWidth(w)
@@ -2198,6 +2215,7 @@ export default function Scootch({ notesApi: notesUrl = '/api/notes', tokens, tab
             theme={theme}
             onTheme={flipTheme}
             embed={embed}
+            breakpoint={breakpoint}
             grab={isDocked || embed ? undefined : { onPointerDown: grabPanel, onPointerMove: movePanel, onPointerUp: dropPanel, onPointerCancel: dropPanel }}
           />
           {!listOpen && <PanelTabs tabs={tabs} tabId={tabId} onTab={setTab} />}

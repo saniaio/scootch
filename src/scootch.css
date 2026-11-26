@@ -2902,16 +2902,34 @@ html[data-scootch-active] .sc-ui-positioner {
   color: var(--sc-grey-60);
 }
 
-.sc-version {
+.sc-name-after {
+  display: grid;
+  align-items: center;
+}
+
+.sc-name-after > * {
+  grid-area: 1 / 1;
   color: var(--sc-grey-40);
   font: var(--sc-text-code);
   white-space: nowrap;
-  opacity: 0;
   transition: opacity var(--sc-dur-micro) var(--sc-ease-out);
 }
 
-.sc-logo:hover + .sc-version {
+.sc-breakpoint {
+  cursor: default;
+}
+
+.sc-version {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sc-logo:hover + .sc-name-after > .sc-version {
   opacity: 1;
+}
+
+.sc-logo:hover + .sc-name-after > .sc-breakpoint {
+  opacity: 0;
 }
 
 .sc-bar-tools {

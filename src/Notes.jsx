@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CommentBox as LibraryCommentBox, Marker, Textarea } from './system/index'
 import { componentPath, cssPath, describe, newId } from './inspect'
+import { breakpointLabel, currentBreakpoint } from './breakpoint'
 
 let API = '/api/notes'
 // Set by <Scootch notesApi>
@@ -49,6 +50,9 @@ export function useNotes(watch, local = false) {
 
   const add = async (el, fx, fy, comment, kind = 'note', extra = {}) => {
     const d = describe(el)
+    // Where it was written: the breakpoint and the window's width, so a fix is made for that size and
+    // not for all of them. pageWidth only when the page had less than the window (a docked panel, rulers).
+    const b = currentBreakpoint()
     const note = {
       id: newId('n-'), // notes saved in the same ms (several elements adjusted at once) still differ
       page,
@@ -62,6 +66,9 @@ export function useNotes(watch, local = false) {
       components: componentPath(el).join(' › '),
       status: 'open',
       at: new Date().toISOString(),
+      breakpoint: breakpointLabel(b),
+      width: b.width,
+      ...(b.page < b.width ? { pageWidth: b.page } : {}),
       ...extra,
     }
     setNotes((list) => [...list, note])

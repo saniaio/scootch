@@ -81,6 +81,8 @@ export default { plugins: [react(), scootchNotes()] }
 
 Notes are saved in `.notes/notes.json` in your app's folder. Add `.notes/` to `.gitignore`.
 
+Each note records the breakpoint it was written at (`breakpoint`, such as `768–1023`) and the window's width (`width`), so a fix can be made for that size and not for all of them. Scootch works the breakpoints out from the widths your own CSS switches at; the panel shows the current one beside its name.
+
 ## Astro
 
 Scootch runs as a React island. Astro needs its React integration (`npx astro add react`), and Scootch has to sit in a small component of your own: importing it straight into an `.astro` file doesn't load.

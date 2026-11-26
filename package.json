@@ -1,6 +1,6 @@
 {
   "name": "scootch",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A dev-only inspector for any React app: check spacing, layout, type and colour against your tokens, edit live, leave notes.",
   "license": "MIT",
   "keywords": [
